@@ -203,14 +203,6 @@
       '<div class="pcard__body">' +
         '<div class="pcard__head"><h3 class="pcard__name"><button class="pcard__open" type="button" data-act="quick" data-slug="' + p.slug + '">' + esc(p.name) + "</button></h3>" + (p.organic ? '<span class="pcard__organic">Organic</span>' : "") + "</div>" +
         '<p class="pcard__variety">' + esc(p.variety) + "</p>" +
-        '<p class="pcard__origin">' + PIN + esc(p.origin) + "</p>" +
-        '<div class="pcard__specs">' +
-          "<div><span>Pack</span><b>" + esc(p.pack) + "</b></div>" +
-          "<div><span>Unit</span><b>" + esc(p.unit) + "</b></div>" +
-          "<div><span>Grade</span><b>" + esc(p.grade) + "</b></div>" +
-          "<div><span>MOQ</span><b>" + esc(p.moq) + "</b></div>" +
-        "</div>" +
-        availBlock(p) +
         '<div class="pcard__actions">' +
           '<button class="btn-enquire' + (sel ? " is-added" : "") + '" type="button" data-act="enquire" data-slug="' + p.slug + '">' + (sel ? "Added ✓" : "Add to enquiry") + "</button>" +
           '<button class="btn-quick" type="button" data-act="quick" data-slug="' + p.slug + '">Quick view</button>' +
