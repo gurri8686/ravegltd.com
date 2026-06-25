@@ -383,7 +383,7 @@ input, textarea, select { font: inherit; color: inherit; }
 
 .pcard {
   background: var(--card); border: 1px solid var(--line); border-radius: 14px; overflow: hidden;
-  box-shadow: var(--shadow-sm); position: relative; cursor: pointer; display: flex; flex-direction: column;
+  box-shadow: var(--shadow-sm); position: relative; cursor: default; display: flex; flex-direction: column;
   transition: transform .2s var(--ease), box-shadow .2s var(--ease), border-color .2s;
   animation: pcardIn .35s var(--ease) both;
 }
@@ -452,8 +452,9 @@ input, textarea, select { font: inherit; color: inherit; }
 .btn-quick:hover { border-color: var(--green-500); color: var(--green-700); }
 
 /* Name as the focusable open-control (keyboard/AT entry to quick view) */
-.pcard__open, .prow__open { font: inherit; color: inherit; text-align: left; padding: 0; background: none; border: 0; cursor: pointer; }
-.pcard__open:hover, .prow__open:hover { color: var(--green-700); }
+/* Quick View disabled (filhal) — product-name pop-out is inert, so it no longer looks clickable */
+.pcard__open, .prow__open { font: inherit; color: inherit; text-align: left; padding: 0; background: none; border: 0; cursor: default; }
+.pcard__open:hover, .prow__open:hover { color: inherit; }
 
 /* Availability caption / labelled seasonality on grid cards */
 .pcard__avail { display: flex; align-items: center; justify-content: space-between; margin-top: .85rem; }
@@ -463,27 +464,36 @@ input, textarea, select { font: inherit; color: inherit; }
 .pcard__avail-cap { display: block; font-size: .6rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin-bottom: .4rem; }
 .pcard__avail-block .seasonbar { margin-top: 0; }
 
-/* List view */
-.product-list { display: flex; flex-direction: column; }
+/* List view — premium data table */
+.product-list {
+  display: flex; flex-direction: column;
+  background: var(--card); border: 1px solid var(--line);
+  border-radius: var(--radius); box-shadow: var(--shadow-sm); overflow: hidden;
+}
 .product-list .prow--head, .product-list .prow {
   display: grid; align-items: center; gap: 1rem;
-  grid-template-columns: 52px minmax(150px, 1.6fr) 1.1fr 1.1fr .8fr .8fr 1fr 110px 150px;
-  padding: .7rem .9rem; border-bottom: 1px solid var(--line);
+  grid-template-columns: 56px minmax(180px, 1.8fr) 1.1fr 1fr .8fr .8fr 1.05fr 132px;
+  padding: .9rem 1.2rem;
 }
-.prow--head { font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); border-bottom: 2px solid var(--line); }
-.prow { background: var(--card); cursor: pointer; transition: background .15s; animation: pcardIn .3s var(--ease) both; }
-.prow:hover { background: #fbfcfa; }
+.prow--head {
+  font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em;
+  color: var(--muted); background: var(--bg-soft); border-bottom: 1px solid var(--line);
+}
+.prow { background: var(--card); transition: background .18s var(--ease); animation: pcardIn .3s var(--ease) both; }
+.product-list .prow + .prow { border-top: 1px solid var(--line); }
+.prow:hover { background: #f6faf5; }
 .prow.is-selected { background: rgba(22,163,74,.06); box-shadow: inset 3px 0 0 var(--green-600); }
-.prow__thumb .pcard__plate { aspect-ratio: 1/1; width: 52px; height: 52px; border-radius: 8px; }
+.prow__thumb .pcard__plate { aspect-ratio: 1/1; width: 52px; height: 52px; border-radius: 10px; }
 .prow__thumb .pcard__img { max-width: 82%; max-height: 82%; }
 .prow__thumb .pcard__mono { font-size: 1.2rem; }
 .prow__thumb .pcard__cat, .prow__thumb .pcard__status { display: none; }
-.prow__name .prow__open { font-weight: 600; color: var(--ink); display: block; font-size: .92rem; }
-.prow__name .prow__open:hover { color: var(--green-700); }
+.prow__name .prow__open { font-weight: 600; color: var(--ink); display: block; font-size: .94rem; cursor: default; }
+.prow__name .prow__open:hover { color: var(--ink); }
 .prow__name span { font-size: .78rem; color: var(--muted); }
-.prow__cell { font-size: .84rem; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.prow__cell { font-size: .85rem; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
 .chip-status { display: inline-flex; align-items: center; gap: .35rem; font-size: .78rem; font-weight: 600; color: var(--ink); white-space: nowrap; }
 .prow__season .seasonbar { margin: 0; }
+/* action column disabled (Add/View commented out) — rules below kept so it restores cleanly */
 .prow__act { display: flex; gap: .4rem; justify-content: flex-end; }
 .prow__act .btn-enquire { flex: none; padding: .4rem .7rem; }
 .prow__act .btn-quick { padding: .4rem .6rem; }
@@ -574,6 +584,148 @@ input, textarea, select { font: inherit; color: inherit; }
 .why-card__ic svg { width: 28px; height: 28px; }
 .why-card h3 { font-size: 1.08rem; margin: 0 0 .4rem; min-height: 2.5em; display: flex; align-items: center; justify-content: center; }
 .why-card p { color: var(--muted); font-size: .9rem; line-height: 1.55; }
+
+/* ---------- CATEGORY SHOWCASE / COLLECTIONS ---------- */
+.collections { position: relative; overflow: hidden; }
+.collections::before {
+  content: ""; position: absolute; z-index: 0; pointer-events: none;
+  width: 420px; height: 420px; right: -160px; top: -120px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(132,204,22,.12), transparent 70%);
+}
+.collections .container { position: relative; z-index: 1; }
+
+.collection-grid {
+  display: grid;
+  grid-template-columns: 1fr 1.3fr 1fr;
+  grid-template-rows: repeat(2, clamp(196px, 22.5vw, 286px));
+  grid-template-areas:
+    "fruits feature veg"
+    "salads feature exotic";
+  gap: clamp(.85rem, 1.5vw, 1.4rem);
+}
+
+.collection-card {
+  position: relative; display: block; isolation: isolate; overflow: hidden;
+  border-radius: clamp(16px, 1.9vw, 26px);
+  color: #fff; box-shadow: var(--shadow-sm);
+  background: linear-gradient(135deg, #1b6b3a, #0f3d22);
+  transition: transform .45s var(--ease), box-shadow .45s var(--ease);
+}
+.collection-card--fruits  { grid-area: fruits;  background: linear-gradient(135deg, #fb923c, #ea580c); }
+.collection-card--salads  { grid-area: salads;  background: linear-gradient(135deg, #84cc16, #3f6212); }
+.collection-card--veg     { grid-area: veg;     background: linear-gradient(135deg, #22c55e, #15803d); }
+.collection-card--exotic  { grid-area: exotic;  background: linear-gradient(135deg, #f472b6, #be185d); }
+.collection-card--feature { grid-area: feature; background: linear-gradient(150deg, #15803d, #0c2417); }
+
+/* full-bleed image + graceful gradient fallback underneath */
+.collection-card__img {
+  position: absolute; inset: 0; width: 100%; height: 100%; z-index: -2;
+  object-fit: cover;
+  transition: transform .8s var(--ease), filter .5s var(--ease);
+}
+.collection-card__overlay {
+  position: absolute; inset: 0; z-index: -1;
+  background: linear-gradient(to top, rgba(7,28,16,.86) 0%, rgba(7,28,16,.34) 46%, rgba(7,28,16,.04) 74%);
+  transition: background .45s var(--ease);
+}
+
+/* readable, layered text block */
+.collection-card__body {
+  position: absolute; inset: auto 0 0 0; z-index: 1;
+  display: flex; flex-direction: column;
+  padding: clamp(.95rem, 1.7vw, 1.4rem);
+}
+.collection-card__eyebrow {
+  font-size: .72rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--lime-300); margin-bottom: .35rem;
+}
+.collection-card__title {
+  font-family: var(--font-display); font-weight: 600; letter-spacing: -.2px; line-height: 1.08;
+  font-size: clamp(1.08rem, 1.5vw, 1.5rem);
+  text-shadow: 0 2px 16px rgba(0,0,0,.45);
+}
+.collection-card__sub {
+  font-size: .84rem; font-weight: 500; line-height: 1.45; color: rgba(255,255,255,.82);
+  max-width: 30ch; margin-top: .3rem;
+  /* collapse smoothly on small cards until hover */
+  max-height: 0; opacity: 0; overflow: hidden;
+  transform: translateY(4px);
+  transition: max-height .5s var(--ease), opacity .4s var(--ease), transform .45s var(--ease), margin-top .4s var(--ease);
+}
+.collection-card:hover .collection-card__sub,
+.collection-card:focus-visible .collection-card__sub { max-height: 6em; opacity: 1; transform: none; }
+
+.collection-card__cta {
+  display: inline-flex; align-items: center; gap: .4rem; align-self: flex-start;
+  margin-top: .7rem; font-size: .76rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+  color: #fff;
+  opacity: 0; transform: translateY(8px);
+  transition: opacity .4s var(--ease), transform .4s var(--ease), gap .3s var(--ease);
+}
+.collection-card__cta svg { transition: transform .3s var(--ease); }
+.collection-card:hover .collection-card__cta,
+.collection-card:focus-visible .collection-card__cta { opacity: 1; transform: none; }
+.collection-card:hover .collection-card__cta svg { transform: translateX(3px); }
+
+/* floating "market leaders" badge on the feature card */
+.collection-card__badge {
+  position: absolute; z-index: 2; top: clamp(.9rem, 1.6vw, 1.25rem); left: clamp(.9rem, 1.6vw, 1.25rem);
+  display: inline-flex; align-items: center; gap: .45rem;
+  background: rgba(255,255,255,.94); color: var(--green-800);
+  font-size: .72rem; font-weight: 700; letter-spacing: .02em;
+  padding: .38rem .75rem; border-radius: 999px; box-shadow: 0 6px 18px rgba(0,0,0,.22);
+}
+.collection-card__badge-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green-500); box-shadow: 0 0 0 4px rgba(34,197,94,.22); }
+
+/* feature card carries more visual weight */
+.collection-card--feature .collection-card__body { padding: clamp(1.2rem, 2.2vw, 2rem); }
+.collection-card--feature .collection-card__title { font-size: clamp(1.5rem, 2.7vw, 2.35rem); }
+.collection-card--feature .collection-card__sub { font-size: clamp(.9rem, 1.05vw, 1.02rem); max-width: 36ch; max-height: 8em; opacity: 1; transform: none; margin-top: .5rem; }
+.collection-card--feature .collection-card__cta { opacity: 1; transform: none; margin-top: 1rem; font-size: .82rem; }
+
+/* hover lift + zoom + ring */
+.collection-card::after {
+  content: ""; position: absolute; inset: 0; z-index: 2; border-radius: inherit; pointer-events: none;
+  border: 1.5px solid rgba(255,255,255,0);
+  transition: border-color .45s var(--ease);
+}
+.collection-card:hover { transform: translateY(-6px); box-shadow: var(--shadow); }
+.collection-card:hover .collection-card__img { transform: scale(1.07); }
+.collection-card:hover .collection-card__overlay { background: linear-gradient(to top, rgba(7,28,16,.9) 0%, rgba(7,28,16,.46) 48%, rgba(15,61,34,.16) 100%); }
+.collection-card:hover::after { border-color: rgba(255,255,255,.55); }
+
+@media (hover: none) {
+  .collection-card__sub { max-height: 6em; opacity: 1; transform: none; margin-top: .3rem; }
+  .collection-card__cta { opacity: 1; transform: none; }
+}
+
+/* tablet — feature becomes a full-width banner above a 2×2 grid */
+@media (max-width: 880px) {
+  .collection-grid {
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: clamp(210px, 34vw, 300px) repeat(2, clamp(150px, 26vw, 200px));
+    grid-template-areas:
+      "feature feature"
+      "fruits  veg"
+      "salads  exotic";
+  }
+}
+
+/* mobile — single elegant stack, feature first and taller */
+@media (max-width: 540px) {
+  .collection-grid {
+    grid-template-columns: 1fr;
+    grid-auto-rows: clamp(168px, 44vw, 210px);
+    grid-template-rows: none;
+    grid-template-areas:
+      "feature"
+      "fruits"
+      "veg"
+      "salads"
+      "exotic";
+  }
+  .collection-card--feature { min-height: clamp(240px, 64vw, 300px); }
+}
 
 /* ---------- FEATURED / TOP SELLING ---------- */
 .featured { background: linear-gradient(180deg, var(--bg), var(--bg-soft)); }
@@ -686,7 +838,7 @@ input, textarea, select { font: inherit; color: inherit; }
   .featured-grid { grid-template-columns: repeat(4, 1fr); }
   .section-head--row { flex-direction: column; align-items: flex-start; gap: .6rem; }
   .catalog-controls { margin-left: 0; flex-wrap: wrap; }
-  .product-list .prow--head, .product-list .prow { grid-template-columns: 52px minmax(140px, 1.6fr) 1.1fr 1.1fr 1.2fr 140px; }
+  .product-list .prow--head, .product-list .prow { grid-template-columns: 56px minmax(150px, 1.7fr) 1.2fr 1.1fr 1.15fr; }
   .pcol--unit, .prow__cell--unit, .pcol--grade, .prow__cell--grade, .pcol--season, .prow__season { display: none; }
 }
 

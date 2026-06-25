@@ -203,10 +203,11 @@
       '<div class="pcard__body">' +
         '<div class="pcard__head"><h3 class="pcard__name"><button class="pcard__open" type="button" data-act="quick" data-slug="' + p.slug + '">' + esc(p.name) + "</button></h3>" + (p.organic ? '<span class="pcard__organic">Organic</span>' : "") + "</div>" +
         '<p class="pcard__variety">' + esc(p.variety) + "</p>" +
-        '<div class="pcard__actions">' +
-          '<button class="btn-enquire' + (sel ? " is-added" : "") + '" type="button" data-act="enquire" data-slug="' + p.slug + '">' + (sel ? "Added ✓" : "Add to enquiry") + "</button>" +
-          '<button class="btn-quick" type="button" data-act="quick" data-slug="' + p.slug + '">Quick view</button>' +
-        "</div>" +
+        // TEMP (filhal): card actions (Add + Quick view) disabled — restore block below to re-enable
+        // '<div class="pcard__actions">' +
+        //   '<button class="btn-enquire' + (sel ? " is-added" : "") + '" type="button" data-act="enquire" data-slug="' + p.slug + '">' + (sel ? "Added ✓" : "Add to enquiry") + "</button>" +
+        //   '<button class="btn-quick" type="button" data-act="quick" data-slug="' + p.slug + '">Quick view</button>' +
+        // "</div>" +
       "</div>" +
     "</article>";
   }
@@ -221,7 +222,8 @@
       '<span class="pcol pcol--grade">Grade</span>' +
       '<span class="pcol pcol--avail">Availability</span>' +
       '<span class="pcol pcol--season">Season</span>' +
-      '<span class="pcol pcol--act"></span>' +
+      // TEMP (filhal): action column removed — restore to bring back the View button column
+      // '<span class="pcol pcol--act"></span>' +
     "</div>";
   }
   function rowHTML(p) {
@@ -236,10 +238,11 @@
       '<div class="prow__cell prow__cell--grade" data-label="Grade">' + esc(p.grade) + "</div>" +
       '<div class="prow__cell prow__cell--avail" data-label="Availability"><span class="chip-status status--' + st.cls + '"><i></i>' + st.label + "</span></div>" +
       '<div class="prow__cell prow__season" data-label="Season">' + seasonBar(p) + "</div>" +
-      '<div class="prow__act">' +
-        '<button class="btn-enquire' + (sel ? " is-added" : "") + '" type="button" data-act="enquire" data-slug="' + p.slug + '">' + (sel ? "✓ Added" : "Add") + "</button>" +
-        '<button class="btn-quick" type="button" data-act="quick" data-slug="' + p.slug + '">View</button>' +
-      "</div>" +
+      // TEMP (filhal): action column (Add + View) disabled — restore block below to re-enable
+      // '<div class="prow__act">' +
+      //   '<button class="btn-enquire' + (sel ? " is-added" : "") + '" type="button" data-act="enquire" data-slug="' + p.slug + '">' + (sel ? "✓ Added" : "Add") + "</button>" +
+      //   '<button class="btn-quick" type="button" data-act="quick" data-slug="' + p.slug + '">View</button>' +
+      // "</div>" +
     "</div>";
   }
 
@@ -364,6 +367,9 @@
     });
   }
   function updateQuoteBar() {
+    // TEMP (filhal): enquiry/quote feature disabled — keep the floating quote bar hidden. Remove these 2 lines to re-enable.
+    if (quoteBar) { quoteBar.classList.remove("show"); quoteBar.hidden = true; }
+    return;
     const slugs = Object.keys(quote);
     const n = slugs.length;
     if (quoteCount) quoteCount.textContent = n;
@@ -412,6 +418,8 @@
   let qvLastFocus = null, qvSlug = null;
 
   function openQuick(slug) {
+    // TEMP (filhal): Quick View disabled — remove this line to re-enable the View / product-name pop-out
+    return;
     const p = BY_SLUG[slug];
     if (!p || !qv) return;
     qvSlug = slug; qvLastFocus = document.activeElement;
@@ -430,11 +438,13 @@
       '<div class="qv__specs">' + specs.map((s) => "<div><span>" + s[0] + "</span><b>" + esc(s[1]) + "</b></div>").join("") + "</div>" +
       '<p class="qv__seasonh">Seasonality</p>' +
       '<div class="qv__seasonbar" aria-hidden="true">' + p.season.map((on, i) => '<span class="' + (on ? "on" : "") + (i === MONTH ? " now" : "") + '"><i></i>' + MONTHS_FULL[i].slice(0, 1) + "</span>").join("") + "</div>" +
-      (p.note ? '<p class="qv__note">' + esc(p.note) + "</p>" : "") +
-      '<div class="qv__buy">' +
-        '<div class="qv__qty"><button type="button" data-qty="-1" aria-label="Decrease">−</button><span id="qvQty">' + (quote[slug] || 1) + "</span><button type=\"button\" data-qty=\"1\" aria-label=\"Increase\">+</button></div>" +
-        '<button class="btn-enquire' + (inQ ? " is-added" : "") + '" type="button" id="qvEnquire">' + (inQ ? "Added ✓ — update" : "Add to enquiry") + "</button>" +
-      "</div>";
+      (p.note ? '<p class="qv__note">' + esc(p.note) + "</p>" : "");
+      // TEMP (filhal): quick-view "Add to enquiry" + qty stepper disabled.
+      // To restore: change the ";" above to " +" and uncomment the block below.
+      // '<div class="qv__buy">' +
+      //   '<div class="qv__qty"><button type="button" data-qty="-1" aria-label="Decrease">−</button><span id="qvQty">' + (quote[slug] || 1) + "</span><button type=\"button\" data-qty=\"1\" aria-label=\"Increase\">+</button></div>" +
+      //   '<button class="btn-enquire' + (inQ ? " is-added" : "") + '" type="button" id="qvEnquire">' + (inQ ? "Added ✓ — update" : "Add to enquiry") + "</button>" +
+      // "</div>";
 
     const plate = qvBody.querySelector(".pcard__plate");
     if (plate) wirePlate(plate, p);
