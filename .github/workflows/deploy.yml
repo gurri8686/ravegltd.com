@@ -1,0 +1,47 @@
+name: Deploy to GoDaddy
+
+# Auto-deploy on every push to main. This static site (HTML/CSS/JS) is deployed as a
+# GIT CLONE on the server, and the live files ARE the repo working tree. Deploying =
+# `git pull` on the server — exactly what you'd do by hand. No FTP upload, no build step.
+#
+# Same mechanism as the vendor-manager repo: GitHub Actions SSHes into the GoDaddy
+# cPanel host and fast-forwards the checkout to origin/main.
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch: {}   # lets you trigger a deploy manually from the Actions tab
+
+# Never let two deploys run at once; let an in-flight one finish first.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy over SSH (git pull on the server)
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_KEY }}          # private key (recommended). For password auth,
+          # password: ${{ secrets.SSH_PASSWORD }}   # comment out `key:` above and use this instead.
+          port: ${{ secrets.SSH_PORT }}        # GoDaddy cPanel SSH port (often 22)
+          script_stop: false   # we guard each step ourselves below
+          script: |
+            # Folder on the server where THIS repo is cloned (cPanel Git Version Control).
+            REPO_DIR="/home/fx8fdk9i85rt/public_html/ravegltd"
+
+            cd "$REPO_DIR" || { echo "ERROR: cannot cd to $REPO_DIR"; ls -la "$HOME" 2>/dev/null; exit 1; }
+            echo "Deploying in: $PWD"
+
+            BEFORE="$(git rev-parse HEAD 2>/dev/null || echo none)"
+            git fetch --prune origin main || { echo "ERROR: git fetch failed"; exit 1; }
+            git reset --hard origin/main  || { echo "ERROR: git reset failed"; exit 1; }
+            AFTER="$(git rev-parse HEAD)"
+
+            echo "Deployed: $BEFORE -> $AFTER"
+            echo "Deploy complete."
+            exit 0

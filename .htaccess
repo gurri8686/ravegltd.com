@@ -1,0 +1,11 @@
+# --- Protect version-control files from public access ---
+# The site is served from the repo working tree, so the .git folder lives inside
+# the docroot. Block it (and other dotfiles) from being fetched over the web.
+
+# Block the entire .git directory (Apache 2.4)
+RedirectMatch 404 /\.git
+
+# Hide other sensitive dotfiles
+<FilesMatch "(^\.gitignore$|^\.cpanel\.yml$|\.ya?ml$)">
+    Require all denied
+</FilesMatch>
