@@ -121,8 +121,10 @@
     if (img.complete && img.naturalWidth === 0) next();
   }
 
-  /* ---------- State ---------- */
-  const state = { cat: "all", q: "", inSeason: false, sort: "featured", view: "grid", limit: 16 };
+  /* ---------- State ----------
+     q       = the live text currently in the input (not yet committed)
+     qTerms  = committed search chips (Enter-to-add). Filtering ANDs every term + live q. */
+  const state = { cat: "all", q: "", qTerms: [], inSeason: false, sort: "featured", view: "grid", limit: 16 };
   const STEP = 16;
   let quote = readLS("raveg:quote", {});
   state.view = readLS("raveg:view", "grid") === "list" ? "list" : "grid";
@@ -134,10 +136,11 @@
   const grid = $("#productGrid");
   if (!grid) return; // products section not on page
 
-  const elSearch = $("#catalogSearch"), elSearchClear = $("#searchClear");
+  const elSearch = $("#catalogSearch");
+  const elField = $("#catalogField"), elFieldBody = $("#catalogFieldBody");
   const elTabs = $$(".cat-tab"), elSort = $("#catalogSort"), elSeason = $("#seasonToggle");
   const elViewBtns = $$(".view-btn"), elToolbar = $("#catalogToolbar");
-  const elCount = $("#catalogCount"), elChips = $("#catalogChips"), elClearAll = $("#clearAll");
+  const elChips = $("#catalogChips"), elClearAll = $("#clearAll");
   const elEmpty = $("#catalogEmpty"), elMore = $("#catalogMore"), elLoadMore = $("#loadMore");
   const elMeta = $("#catalogMeta");
 
@@ -149,13 +152,14 @@
 
   /* ---------- Filter + sort ---------- */
   function getFiltered() {
-    const q = state.q.trim().toLowerCase();
+    // Every committed term + the live text must all match (AND).
+    const terms = state.qTerms.concat(state.q.trim() ? [state.q.trim()] : []).map((t) => t.toLowerCase());
     let list = PRODUCTS.filter((p) => {
       if (state.cat !== "all" && p.cat !== state.cat) return false;
       if (state.inSeason && !p.season[MONTH]) return false;
-      if (q) {
+      if (terms.length) {
         const hay = [p.name, p.variety, p.origin, CAT_LABEL[p.cat], ...(p.aliases || [])].join(" ").toLowerCase();
-        if (!hay.includes(q)) return false;
+        if (!terms.every((t) => hay.includes(t))) return false;
       }
       return true;
     });
@@ -264,43 +268,270 @@
     });
 
     elEmpty.hidden = total !== 0;
-    if (total === 0) { const em = $("#emptyMsg"); if (em) em.textContent = state.q.trim() ? 'No produce matches “' + state.q.trim() + '”.' : "No produce matches the selected filters."; }
+    if (total === 0) {
+      const em = $("#emptyMsg");
+      const liveTerm = state.qTerms.concat(state.q.trim() ? [state.q.trim()] : [])[0];
+      if (em) em.textContent = liveTerm ? 'No produce matches “' + liveTerm + '”.' : "No produce matches the selected filters.";
+    }
     elMore.hidden = total <= state.limit;
-    if (elCount) elCount.textContent = shown.length >= total ? "Showing all " + total + " lines" : "Showing " + shown.length + " of " + total;
     renderChips();
   }
 
+  /* Build the active-filter chips that live INSIDE the search field.
+     Chip kinds: cat (category) · season · q:<index> (a committed search term). */
   function renderChips() {
     const chips = [];
-    if (state.cat !== "all") chips.push({ k: "cat", label: CAT_LABEL[state.cat] });
-    if (state.inSeason) chips.push({ k: "season", label: "In season now" });
-    if (state.q.trim()) chips.push({ k: "q", label: '“' + state.q.trim() + '”' });
-    elChips.innerHTML = chips.map((c) => '<span class="catalog-chip">' + esc(c.label) + '<button type="button" data-chip="' + c.k + '" aria-label="Remove filter">&times;</button></span>').join("");
-    elClearAll.hidden = chips.length === 0;
+    if (state.cat !== "all") chips.push({ k: "cat", kind: "cat", label: CAT_LABEL[state.cat] });
+    if (state.inSeason) chips.push({ k: "season", kind: "season", label: "In season" });
+    state.qTerms.forEach((t, i) => chips.push({ k: "q:" + i, kind: "q", label: t }));
+
+    elChips.innerHTML = chips.map((c) =>
+      '<li class="catalog-chip" data-kind="' + c.kind + '">' +
+        (c.kind === "q" ? '<span class="catalog-chip__dot" aria-hidden="true"></span>' : '') +
+        '<span class="catalog-chip__label">' + esc(c.label) + '</span>' +
+        '<button type="button" class="catalog-chip__x" data-chip="' + c.k + '" aria-label="Remove ' + esc(c.label) + ' filter">' +
+          '<svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>' +
+        '</button>' +
+      '</li>'
+    ).join("");
+
+    const hasAny = chips.length > 0 || !!state.q;
+    elClearAll.hidden = chips.length === 0;        // clear-all only when committed filters exist
+    elField.classList.toggle("has-content", hasAny);
   }
 
   /* ---------- Toolbar events ---------- */
   function resetLimit() { state.limit = STEP; }
 
+  // Keep --toolbar-h in sync with the real sticky-bar height (used by scroll-margin-top)
+  function syncToolbarH() {
+    if (!elToolbar) return;
+    document.documentElement.style.setProperty("--toolbar-h", Math.round(elToolbar.offsetHeight) + "px");
+  }
+  syncToolbarH();
+  if (window.ResizeObserver && elToolbar) new ResizeObserver(syncToolbarH).observe(elToolbar);
+
+  /* After a discrete filter change, make sure the first row of results is visible —
+     not hidden under the sticky header + toolbar. Only scrolls if it's actually obscured. */
+  function revealResults() {
+    if (!grid) return;
+    const headerEl = $("#header");
+    const stickyBottom = (headerEl ? headerEl.offsetHeight : 76) + (elToolbar ? elToolbar.offsetHeight : 0);
+    const gridTop = grid.getBoundingClientRect().top;
+    // If the grid starts above the bottom of the sticky stack, its top rows are covered.
+    if (gridTop < stickyBottom + 8) {
+      grid.scrollIntoView({ behavior: "smooth", block: "start" }); // scroll-margin-top handles the offset
+    }
+  }
+
+  // Clicking anywhere in the field focuses the text input (chip ×-buttons handle their own clicks)
+  if (elField) elField.addEventListener("mousedown", (e) => {
+    if (e.target.closest(".catalog-chip__x, .catalog-search__clear")) return;
+    if (e.target !== elSearch) { e.preventDefault(); elSearch.focus(); }
+  });
+  if (elSearch) {
+    elSearch.addEventListener("focus", () => elField.classList.add("is-focused"));
+    elSearch.addEventListener("blur", () => elField.classList.remove("is-focused"));
+  }
+
+  // Commit a typed term into a chip (deduped, capped to keep the field tidy)
+  function commitTerm() {
+    const t = elSearch.value.trim();
+    elSearch.value = "";
+    state.q = "";
+    if (t && !state.qTerms.some((x) => x.toLowerCase() === t.toLowerCase()) && state.qTerms.length < 6) {
+      state.qTerms.push(t);
+    }
+    resetLimit(); render(); revealResults();
+  }
+
   let searchT;
   if (elSearch) elSearch.addEventListener("input", () => {
-    elSearchClear.hidden = !elSearch.value;
     clearTimeout(searchT);
+    elField.classList.toggle("has-content", !!elSearch.value || state.qTerms.length || state.cat !== "all" || state.inSeason);
     searchT = setTimeout(() => { state.q = elSearch.value; resetLimit(); render(); }, 150);
   });
-  if (elSearchClear) elSearchClear.addEventListener("click", () => { elSearch.value = ""; elSearchClear.hidden = true; state.q = ""; resetLimit(); render(); elSearch.focus(); });
+  if (elSearch) elSearch.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.preventDefault(); clearTimeout(searchT); commitTerm(); }
+    // Backspace on an empty input removes the last chip (React-Select / Notion behaviour)
+    else if (e.key === "Backspace" && elSearch.value === "") {
+      if (state.qTerms.length) { state.qTerms.pop(); resetLimit(); render(); }
+      else if (state.inSeason) { state.inSeason = false; elSeason.setAttribute("aria-pressed", "false"); resetLimit(); render(); }
+      else if (state.cat !== "all") { setCat("all"); }
+    }
+  });
+
+  // Press "/" anywhere to jump to the catalogue search (ignored while typing in a field)
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "/" || e.ctrlKey || e.metaKey || e.altKey) return;
+    const a = document.activeElement, t = a && a.tagName;
+    if (t === "INPUT" || t === "TEXTAREA" || t === "SELECT" || (a && a.isContentEditable)) return;
+    if (elSearch) { e.preventDefault(); elSearch.focus(); }
+  });
+
+  // Single source of truth for the active category tab (keeps tabs + chip in sync)
+  function setCat(cat, opts) {
+    state.cat = cat;
+    elTabs.forEach((t) => {
+      const on = t.dataset.filter === cat;
+      t.classList.toggle("is-active", on); t.setAttribute("aria-pressed", String(on));
+    });
+    if (!opts || opts.render !== false) { resetLimit(); render(); }
+  }
 
   elTabs.forEach((tab) => tab.addEventListener("click", () => {
-    elTabs.forEach((t) => { t.classList.remove("is-active"); t.setAttribute("aria-pressed", "false"); });
-    tab.classList.add("is-active"); tab.setAttribute("aria-pressed", "true");
-    state.cat = tab.dataset.filter; resetLimit(); render();
+    const f = tab.dataset.filter;
+    // Re-clicking the active non-"all" tab toggles it off (removes the chip)
+    setCat(f === "all" ? "all" : (state.cat === f ? "all" : f));
+    revealResults();
   }));
 
   if (elSort) elSort.addEventListener("change", () => { state.sort = elSort.value; resetLimit(); render(); });
+
+  /* ---------- Sort: upgrade native <select> → premium accessible listbox ----------
+     The native select stays the source of truth. We mirror selections back to it and
+     dispatch a 'change' event, so the handler above (state.sort + render) is untouched. */
+  (function upgradeSort() {
+    const wrap = $("#catalogSortWrap"), sel = elSort;
+    if (!wrap || !sel || wrap.classList.contains("is-upgraded")) return;
+
+    // Inline SVG icon set (stroke = currentColor so they inherit row colours)
+    const ICONS = {
+      lead:     '<path d="M3 6h13M3 12h9M3 18h5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M17 14l3 3 3-3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',
+      chev:     '<path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',
+      check:    '<path d="M5 12.5l4.2 4.2L19 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>',
+      featured: '<path d="M12 3l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9 6.8 19.6l1-5.8L3.5 9.7l5.9-.9z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>',
+      az:       '<path d="M5 16l2.2-7L9.4 16M5.6 14h3.6M14 9h5l-5 7h5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>',
+      season:   '<path d="M12 3c2.5 3 4 5.4 4 8a4 4 0 11-8 0c0-2.6 1.5-5 4-8z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 13v8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>',
+      origin:   '<circle cx="12" cy="11" r="3.2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 21c4.5-4.2 6.5-7.4 6.5-10a6.5 6.5 0 10-13 0c0 2.6 2 5.8 6.5 10z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>',
+      category: '<rect x="4" y="4" width="6.5" height="6.5" rx="1.6" fill="none" stroke="currentColor" stroke-width="1.8"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.6" fill="none" stroke="currentColor" stroke-width="1.8"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.6" fill="none" stroke="currentColor" stroke-width="1.8"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.6" fill="none" stroke="currentColor" stroke-width="1.8"/>'
+    };
+    const svg = (k, sz = 18) => `<svg viewBox="0 0 24 24" width="${sz}" height="${sz}" aria-hidden="true">${ICONS[k] || ""}</svg>`;
+
+    const opts = Array.from(sel.options).map((o, i) => ({
+      value: o.value, label: o.text,
+      icon: o.dataset.icon || "category", desc: o.dataset.desc || "", id: `rsort-opt-${i}`
+    }));
+
+    const listId = "rsort-list", triggerId = "rsort-trigger";
+    const trigger = document.createElement("button");
+    trigger.type = "button"; trigger.id = triggerId; trigger.className = "rsort__trigger";
+    trigger.setAttribute("aria-haspopup", "listbox");
+    trigger.setAttribute("aria-expanded", "false");
+    trigger.setAttribute("aria-controls", listId);
+    trigger.setAttribute("aria-label", "Sort produce");
+
+    const panel = document.createElement("div");
+    panel.className = "rsort__panel";
+    panel.innerHTML =
+      `<div class="rsort__grouplabel" id="rsort-grouplabel">Sort by</div>` +
+      `<ul class="rsort__list" id="${listId}" role="listbox" tabindex="-1" aria-labelledby="rsort-grouplabel">` +
+      opts.map((o) =>
+        `<li id="${o.id}" class="rsort__opt" role="option" data-value="${o.value}" aria-selected="false">` +
+          `<span class="rsort__opt-ic">${svg(o.icon)}</span>` +
+          `<span class="rsort__opt-txt"><span class="rsort__opt-name">${esc(o.label)}</span>` +
+            (o.desc ? `<span class="rsort__opt-desc">${esc(o.desc)}</span>` : ``) + `</span>` +
+          `<span class="rsort__opt-check">${svg("check", 17)}</span>` +
+        `</li>`
+      ).join("") +
+      `</ul>`;
+
+    wrap.append(trigger, panel);
+    wrap.classList.add("is-upgraded");
+
+    const rows = $$(".rsort__opt", panel);
+    let open = false, activeIdx = -1;
+
+    function renderTrigger() {
+      const o = opts.find((x) => x.value === sel.value) || opts[0];
+      trigger.innerHTML =
+        `<span class="rsort__lead">${svg("lead", 16)}</span>` +
+        `<span class="rsort__valwrap"><span class="rsort__hint">Sort</span>` +
+        `<span class="rsort__value">${esc(o.label)}</span></span>` +
+        `<span class="rsort__chev">${svg("chev", 16)}</span>`;
+    }
+    function syncSelected() {
+      rows.forEach((r) => r.setAttribute("aria-selected", String(r.dataset.value === sel.value)));
+    }
+    function setActive(idx) {
+      activeIdx = idx;
+      rows.forEach((r, i) => r.classList.toggle("is-active", i === idx));
+      if (idx >= 0) {
+        panel.querySelector(".rsort__list").setAttribute("aria-activedescendant", rows[idx].id);
+        rows[idx].scrollIntoView({ block: "nearest" });
+      }
+    }
+    function openPanel() {
+      if (open) return;
+      open = true; wrap.classList.add("is-open"); trigger.setAttribute("aria-expanded", "true");
+      const cur = rows.findIndex((r) => r.dataset.value === sel.value);
+      setActive(cur >= 0 ? cur : 0);
+      document.addEventListener("pointerdown", onOutside, true);
+    }
+    function closePanel(focusTrigger) {
+      if (!open) return;
+      open = false; wrap.classList.remove("is-open"); trigger.setAttribute("aria-expanded", "false");
+      setActive(-1);
+      document.removeEventListener("pointerdown", onOutside, true);
+      if (focusTrigger) trigger.focus();
+    }
+    function choose(idx) {
+      const r = rows[idx]; if (!r) return;
+      if (sel.value !== r.dataset.value) {
+        sel.value = r.dataset.value;
+        sel.dispatchEvent(new Event("change", { bubbles: true })); // → existing handler runs
+        renderTrigger(); syncSelected();
+      }
+      closePanel(true);
+    }
+    function onOutside(e) { if (!wrap.contains(e.target)) closePanel(false); }
+
+    // Type-ahead buffer
+    let buf = "", bufT = 0;
+    function typeahead(ch) {
+      const now = (window.performance && performance.now) ? performance.now() : 0;
+      buf = (now - bufT > 600 ? "" : buf) + ch.toLowerCase(); bufT = now;
+      const hit = opts.findIndex((o) => o.label.toLowerCase().startsWith(buf));
+      if (hit >= 0) setActive(hit);
+    }
+
+    trigger.addEventListener("click", () => (open ? closePanel(true) : openPanel()));
+    trigger.addEventListener("keydown", (e) => {
+      if (["ArrowDown", "ArrowUp", "Enter", " "].includes(e.key)) { e.preventDefault(); openPanel(); }
+    });
+
+    panel.addEventListener("keydown", (e) => {
+      switch (e.key) {
+        case "ArrowDown": e.preventDefault(); setActive(Math.min(activeIdx + 1, rows.length - 1)); break;
+        case "ArrowUp":   e.preventDefault(); setActive(Math.max(activeIdx - 1, 0)); break;
+        case "Home":      e.preventDefault(); setActive(0); break;
+        case "End":       e.preventDefault(); setActive(rows.length - 1); break;
+        case "Enter":
+        case " ":         e.preventDefault(); choose(activeIdx); break;
+        case "Escape":    e.preventDefault(); closePanel(true); break;
+        case "Tab":       closePanel(false); break;
+        default: if (e.key.length === 1) { typeahead(e.key); }
+      }
+    });
+    // keep keyboard handler reachable while panel is open
+    panel.setAttribute("tabindex", "-1");
+    trigger.addEventListener("focus", () => { /* roving lives on the list */ });
+
+    rows.forEach((r, i) => {
+      r.addEventListener("click", () => choose(i));
+      r.addEventListener("pointermove", () => setActive(i));
+    });
+
+    // When the panel opens, move focus to the list so arrow keys work immediately
+    const obs = new MutationObserver(() => { if (open) panel.querySelector(".rsort__list").focus(); });
+    obs.observe(wrap, { attributes: true, attributeFilter: ["class"] });
+
+    renderTrigger(); syncSelected();
+  })();
   if (elSeason) elSeason.addEventListener("click", () => {
     state.inSeason = !state.inSeason;
     elSeason.setAttribute("aria-pressed", String(state.inSeason));
-    resetLimit(); render();
+    resetLimit(); render(); revealResults();
   });
 
   function setView(v) {
@@ -312,22 +543,36 @@
 
   if (elLoadMore) elLoadMore.addEventListener("click", () => { state.limit += STEP; render(); });
 
+  // Apply the state change a chip removal implies, then re-render.
+  function removeChip(k) {
+    if (k === "cat") setCat("all", { render: false });
+    else if (k === "season") { state.inSeason = false; if (elSeason) elSeason.setAttribute("aria-pressed", "false"); }
+    else if (k.indexOf("q:") === 0) { const i = +k.slice(2); if (!isNaN(i)) state.qTerms.splice(i, 1); }
+    resetLimit(); render();
+  }
   elChips.addEventListener("click", (e) => {
     const btn = e.target.closest("[data-chip]");
     if (!btn) return;
-    const k = btn.dataset.chip;
-    if (k === "cat") { state.cat = "all"; elTabs.forEach((t) => { const on = t.dataset.filter === "all"; t.classList.toggle("is-active", on); t.setAttribute("aria-pressed", String(on)); }); }
-    if (k === "season") { state.inSeason = false; elSeason.setAttribute("aria-pressed", "false"); }
-    if (k === "q") { state.q = ""; if (elSearch) { elSearch.value = ""; elSearchClear.hidden = true; } }
-    resetLimit(); render();
+    const k = btn.dataset.chip, chip = btn.closest(".catalog-chip");
+    // Play the exit animation, then commit the removal once (guarded against double-fire)
+    const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (chip && !reduce) {
+      let done = false;
+      const fire = () => { if (done) return; done = true; removeChip(k); };
+      chip.classList.add("is-leaving");
+      chip.addEventListener("animationend", fire, { once: true });
+      setTimeout(fire, 200); // fallback if animationend doesn't fire
+    } else {
+      removeChip(k);
+    }
   });
 
   function clearAll() {
-    state.cat = "all"; state.q = ""; state.inSeason = false;
-    if (elSearch) { elSearch.value = ""; elSearchClear.hidden = true; }
-    elTabs.forEach((t) => { const on = t.dataset.filter === "all"; t.classList.toggle("is-active", on); t.setAttribute("aria-pressed", String(on)); });
+    state.q = ""; state.qTerms = []; state.inSeason = false;
+    if (elSearch) elSearch.value = "";
     if (elSeason) elSeason.setAttribute("aria-pressed", "false");
-    resetLimit(); render();
+    setCat("all"); // resets tabs + renders
+    if (elSearch) elSearch.focus();
   }
   if (elClearAll) elClearAll.addEventListener("click", clearAll);
   if ($("#emptyClear")) $("#emptyClear").addEventListener("click", clearAll);
@@ -500,11 +745,10 @@
   }
 
   function applyCategory(cat) {
-    state.cat = cat; state.q = ""; state.inSeason = false; resetLimit();
-    if (elSearch) { elSearch.value = ""; if (elSearchClear) elSearchClear.hidden = true; }
+    state.q = ""; state.qTerms = []; state.inSeason = false;
+    if (elSearch) elSearch.value = "";
     if (elSeason) elSeason.setAttribute("aria-pressed", "false");
-    elTabs.forEach((t) => { const on = t.dataset.filter === cat; t.classList.toggle("is-active", on); t.setAttribute("aria-pressed", String(on)); });
-    render();
+    setCat(cat); // updates tabs + state.cat, resets limit, renders
     const tb = $("#catalogToolbar"), hd = $("#header");
     if (tb) window.scrollTo({ top: tb.getBoundingClientRect().top + window.scrollY - (hd ? hd.offsetHeight : 70) - 8, behavior: "smooth" });
   }
@@ -523,8 +767,8 @@
 
   const CATEGORIES = [
     { key: "fruits", label: "Fruits", rep: "oranges" },
-    { key: "vegetables", label: "Vegetables", rep: "tomatoes" },
-    { key: "herbs", label: "Salads & Herbs", rep: "coriander" },
+    { key: "vegetables", label: "Vegetables", rep: "tomatoes", img: "https://loremflickr.com/720/560/fresh,vegetables?lock=11" },
+    { key: "herbs", label: "Salads & Herbs", rep: "coriander", img: "https://loremflickr.com/720/560/salad,lettuce,herbs?lock=23" },
     { key: "exotics", label: "Exotic Fruits", rep: "mango" },
   ];
   const showcase = $("#catShowcase");
@@ -534,8 +778,12 @@
       "<p>Market leaders in Indian &amp; Afro-Caribbean produce — browse by category, or search the full range below.</p></div>" +
       '<div class="cat-grid">' + CATEGORIES.map((c) => {
         const p = BY_SLUG[c.rep] || PRODUCTS.find((x) => x.cat === c.key);
-        return '<button class="cat-tile" type="button" data-filter="' + c.key + '" data-slug="' + p.slug + '" aria-label="Browse ' + esc(c.label) + '">' +
-          plateHTML(p) +
+        // c.img = dedicated full-bleed category photo (reliable); else fall back to the product-image plate
+        const plate = c.img
+          ? '<div class="pcard__plate is-loaded" data-fit="cover"><img class="pcard__img" src="' + c.img + '" alt="" loading="lazy" decoding="async" onerror="this.closest(\'.pcard__plate\').classList.add(\'is-mono\')"><span class="pcard__mono" aria-hidden="true">' + esc(c.label[0]) + "</span></div>"
+          : plateHTML(p);
+        return '<button class="cat-tile" type="button" data-filter="' + c.key + '"' + (c.img ? "" : ' data-slug="' + p.slug + '"') + ' aria-label="Browse ' + esc(c.label) + '">' +
+          plate +
           '<span class="cat-tile__label"><strong>' + esc(c.label) + "</strong><span>" + counts[c.key] + " lines</span><em>Browse &rarr;</em></span></button>";
       }).join("") + "</div>";
     wireAllPlates(showcase);
