@@ -597,9 +597,16 @@ input, textarea, select { font: inherit; color: inherit; }
 .pcard__plate.is-loaded .pcard__img { opacity: 1; }
 .pcard__plate[data-fit="cover"] .pcard__img { max-width: none; max-height: none; width: 100%; height: 100%; object-fit: cover; filter: saturate(.9) brightness(1.02); }
 .pcard:hover .pcard__img { transform: scale(1.04); }
-.pcard__mono { display: none; z-index: 2; font-family: var(--font-display); font-size: 3rem; font-weight: 700; color: var(--green-700); opacity: .45; }
+/* Fallback when no photo is available — a branded, intentional placeholder
+   (tinted plate + display-type monogram) rather than a faint broken letter. */
+.pcard__mono {
+  display: none; z-index: 2; place-items: center; width: 76px; height: 76px; border-radius: 50%;
+  font-family: var(--font-display); font-size: 2.3rem; font-weight: 600; line-height: 1;
+  color: var(--green-700); background: rgba(255,255,255,.7); box-shadow: inset 0 0 0 1px rgba(21,128,61,.14);
+}
+.pcard__plate.is-mono { background: radial-gradient(120% 120% at 50% 30%, #eef6ee, #dfeede); }
 .pcard__plate.is-mono .pcard__img { display: none; }
-.pcard__plate.is-mono .pcard__mono { display: block; }
+.pcard__plate.is-mono .pcard__mono { display: grid; }
 
 .pcard__cat { position: absolute; top: .6rem; left: .6rem; z-index: 4; display: inline-flex; align-items: center; gap: .32rem; font-size: .66rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-soft); background: rgba(255,255,255,.82); padding: .22rem .5rem; border-radius: 6px; -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); }
 .pcard__cat i { width: 6px; height: 6px; border-radius: 50%; background: var(--green-600); }

@@ -24,14 +24,21 @@
     seasonal: { label: "Seasonal",   cls: "seasonal" },
   };
 
-  // Client-supplied photos in assets/products/{cat}/  (slug: 'filename.ext'). Used in preference to stock.
+  // Local photos in assets/products/{cat}/. Value is "filename" (shown cover) or
+  // { file, fit } when a cutout should be shown "contain". Used in preference to stock.
   const LOCAL_IMAGES = {
     apples: "apples.jpeg", bananas: "bananas.jpeg", oranges: "oranges.jpeg",
     strawberries: "strawberries.jpeg", papaya: "papaya.jpeg", watermelon: "watermelon.jpeg",
     mango: "mango.jpeg", plantain: "plantain.webp", guava: "guava.jpeg", jackfruit: "jackfruit.jpeg",
+    // Specialty produce: clean cutouts (contain) + full photos (cover)
+    okra: { file: "okra.png", fit: "contain" },
+    "dragon-fruit": { file: "dragon-fruit.jpg", fit: "contain" },
+    "passion-fruit": { file: "passion-fruit.jpg", fit: "contain" },
+    lychee: { file: "lychee.jpg", fit: "contain" },
+    cassava: "cassava.jpg", yam: "yam.jpg",
   };
 
-  // img = TheMealDB ingredient token (real cutout photo); kw/lock = loremflickr keyword fallback for items without a cutout.
+  // img = TheMealDB ingredient token (a clean cutout photo on transparent background).
   const PRODUCTS = [
     // ---- FRUITS ----
     { name: "Apples", slug: "apples", cat: "fruits", img: "Apple", sku: "FRT-001", variety: "Gala & Braeburn", origin: "Kent, UK", pack: "Box · 80–100ct", unit: "per box", grade: "Class I", moq: "1 box", season: YR, status: "in", storage: "Chilled 1–4°C · 21 days", note: "British-grown, kept fresh in controlled-atmosphere storage from harvest." },
@@ -48,7 +55,7 @@
     { name: "Pomegranates", slug: "pomegranates", cat: "fruits", img: "Pomegranate", sku: "FRT-012", variety: "Wonderful", origin: "Spain / India", pack: "Box · 12ct", unit: "per box", grade: "Class I", moq: "1 box", season: M(9, 10, 11, 12, 1, 2), status: "seasonal", storage: "Chilled 5–7°C", note: "Deep-red arils, high brix — the Wonderful variety." },
     { name: "Papaya", slug: "papaya", cat: "fruits", img: "Papaya", sku: "FRT-013", variety: "Formosa", origin: "Brazil", pack: "Box · 6–9ct", unit: "per box", grade: "Class I", moq: "1 box", season: YR, status: "in", storage: "Ambient / chilled", note: "Large Formosa papaya, ripened for foodservice." },
     { name: "Apricots", slug: "apricots", cat: "fruits", img: "Apricot", sku: "FRT-014", variety: "Bergeron", origin: "Spain / France", pack: "Box · 5kg", unit: "per box", grade: "Class I", moq: "1 box", season: M(5, 6, 7, 8), status: "low", storage: "Chilled 2–4°C", note: "Aromatic stone fruit at the height of summer." },
-    { name: "Watermelon", slug: "watermelon", cat: "fruits", kw: "watermelon", lock: 31, sku: "FRT-015", variety: "Seedless", origin: "Spain / Brazil", pack: "Box · 3–5ct", unit: "per box", grade: "Class I", moq: "1 box", season: M(6, 7, 8, 9), status: "seasonal", storage: "Chilled 8–10°C", note: "Sweet, crisp seedless watermelon at its summer peak." },
+    { name: "Watermelon", slug: "watermelon", cat: "fruits", sku: "FRT-015", variety: "Seedless", origin: "Spain / Brazil", pack: "Box · 3–5ct", unit: "per box", grade: "Class I", moq: "1 box", season: M(6, 7, 8, 9), status: "seasonal", storage: "Chilled 8–10°C", note: "Sweet, crisp seedless watermelon at its summer peak." },
 
     // ---- VEGETABLES ----
     { name: "Tomatoes", slug: "tomatoes", cat: "vegetables", img: "Tomato", sku: "VEG-001", variety: "Vine-ripened", origin: "UK / Netherlands", pack: "Box · 6kg", unit: "per box", grade: "Class I", moq: "1 box", season: YR, status: "in", storage: "Ambient 12–15°C", note: "Vine, plum and cherry available — all grown under glass." },
@@ -68,19 +75,19 @@
 
     // ---- EXOTICS ----
     { name: "Mango", slug: "mango", cat: "exotics", img: "Mango", sku: "EXO-001", variety: "Alphonso & Kesar", origin: "India / Pakistan", pack: "Box · 6–10ct", unit: "per box", grade: "Premium", moq: "1 box", season: M(4, 5, 6, 7), status: "seasonal", storage: "Ambient, ripen to order", note: "Flagship Indian season — Alphonso and Kesar in limited allocation." },
-    { name: "Plantain", slug: "plantain", cat: "exotics", kw: "plantain", lock: 21, sku: "EXO-002", variety: "Green & ripe", origin: "Ghana / Colombia", pack: "Box · 22kg", unit: "per box", grade: "Class I", moq: "1 box", season: YR, status: "in", storage: "Ambient 13–15°C", note: "Both green (cooking) and yellow (ripe) supplied year-round." },
-    { name: "Okra", slug: "okra", cat: "exotics", kw: "okra,vegetable", lock: 22, sku: "EXO-003", variety: "Lady's finger", origin: "India / Kenya", pack: "Case · 5kg", unit: "per case", grade: "Class I", moq: "1 case", season: YR, status: "in", aliases: ["Bhindi", "Lady finger"], storage: "Chilled 7–10°C", note: "Tender, bright-green pods graded for size." },
-    { name: "Cassava", slug: "cassava", cat: "exotics", kw: "cassava,root", lock: 23, sku: "EXO-004", variety: "Fresh root", origin: "Costa Rica", pack: "Box · 18kg", unit: "per box", grade: "Class I", moq: "1 box", season: YR, status: "in", aliases: ["Yuca", "Manioc"], storage: "Cool, dry, ambient", note: "Waxed fresh cassava root with long shelf life." },
-    { name: "Yam", slug: "yam", cat: "exotics", kw: "yam,tuber", lock: 24, sku: "EXO-005", variety: "Puna white", origin: "Ghana", pack: "Box · 15kg", unit: "per box", grade: "Class I", moq: "1 box", season: YR, status: "in", storage: "Cool, dry, ambient", note: "Authentic West-African white yam." },
-    { name: "Dragon Fruit", slug: "dragon-fruit", cat: "exotics", kw: "dragonfruit,pitaya", lock: 25, sku: "EXO-006", variety: "Pink pitaya", origin: "Vietnam", pack: "Box · 8–10ct", unit: "per box", grade: "Extra", moq: "1 box", season: YR, status: "low", aliases: ["Pitaya"], storage: "Chilled 7–10°C", note: "Striking pink-skin pitaya for retail display." },
-    { name: "Passion Fruit", slug: "passion-fruit", cat: "exotics", kw: "passionfruit", lock: 26, sku: "EXO-007", variety: "Purple", origin: "Colombia", pack: "Box · 2kg", unit: "per box", grade: "Class I", moq: "1 box", season: YR, status: "in", storage: "Chilled 7–10°C", note: "Aromatic, wrinkle-when-ripe purple passion fruit." },
-    { name: "Lychee", slug: "lychee", cat: "exotics", kw: "lychee,fruit", lock: 27, sku: "EXO-008", variety: "Fresh", origin: "Madagascar / India", pack: "Box · 2kg", unit: "per box", grade: "Class I", moq: "1 box", season: M(11, 12, 1, 2, 5, 6), status: "seasonal", storage: "Chilled 2–5°C", note: "Floral, sweet lychee in branch and loose packs." },
+    { name: "Plantain", slug: "plantain", cat: "exotics", sku: "EXO-002", variety: "Green & ripe", origin: "Ghana / Colombia", pack: "Box · 22kg", unit: "per box", grade: "Class I", moq: "1 box", season: YR, status: "in", storage: "Ambient 13–15°C", note: "Both green (cooking) and yellow (ripe) supplied year-round." },
+    { name: "Okra", slug: "okra", cat: "exotics", sku: "EXO-003", variety: "Lady's finger", origin: "India / Kenya", pack: "Case · 5kg", unit: "per case", grade: "Class I", moq: "1 case", season: YR, status: "in", aliases: ["Bhindi", "Lady finger"], storage: "Chilled 7–10°C", note: "Tender, bright-green pods graded for size." },
+    { name: "Cassava", slug: "cassava", cat: "exotics", sku: "EXO-004", variety: "Fresh root", origin: "Costa Rica", pack: "Box · 18kg", unit: "per box", grade: "Class I", moq: "1 box", season: YR, status: "in", aliases: ["Yuca", "Manioc"], storage: "Cool, dry, ambient", note: "Waxed fresh cassava root with long shelf life." },
+    { name: "Yam", slug: "yam", cat: "exotics", sku: "EXO-005", variety: "Puna white", origin: "Ghana", pack: "Box · 15kg", unit: "per box", grade: "Class I", moq: "1 box", season: YR, status: "in", storage: "Cool, dry, ambient", note: "Authentic West-African white yam." },
+    { name: "Dragon Fruit", slug: "dragon-fruit", cat: "exotics", sku: "EXO-006", variety: "Pink pitaya", origin: "Vietnam", pack: "Box · 8–10ct", unit: "per box", grade: "Extra", moq: "1 box", season: YR, status: "low", aliases: ["Pitaya"], storage: "Chilled 7–10°C", note: "Striking pink-skin pitaya for retail display." },
+    { name: "Passion Fruit", slug: "passion-fruit", cat: "exotics", sku: "EXO-007", variety: "Purple", origin: "Colombia", pack: "Box · 2kg", unit: "per box", grade: "Class I", moq: "1 box", season: YR, status: "in", storage: "Chilled 7–10°C", note: "Aromatic, wrinkle-when-ripe purple passion fruit." },
+    { name: "Lychee", slug: "lychee", cat: "exotics", sku: "EXO-008", variety: "Fresh", origin: "Madagascar / India", pack: "Box · 2kg", unit: "per box", grade: "Class I", moq: "1 box", season: M(11, 12, 1, 2, 5, 6), status: "seasonal", storage: "Chilled 2–5°C", note: "Floral, sweet lychee in branch and loose packs." },
     { name: "Scotch Bonnet", slug: "scotch-bonnet", cat: "exotics", img: "Scotch Bonnet", sku: "EXO-009", variety: "Hot pepper", origin: "Jamaica / Uganda", pack: "Case · 3kg", unit: "per case", grade: "Class I", moq: "1 case", season: YR, status: "in", aliases: ["Scotch bonnet chilli", "Bonney pepper"], storage: "Chilled 7–10°C", note: "Fiery, fruity Caribbean staple — mixed colours." },
     { name: "Ginger", slug: "ginger", cat: "exotics", img: "Ginger", sku: "EXO-010", variety: "Fresh root", origin: "China / Peru", pack: "Box · 10kg", unit: "per box", grade: "Class I", moq: "1 box", season: YR, status: "in", aliases: ["Adrak"], storage: "Cool, dry, ambient", note: "Plump, low-fibre root ginger." },
     { name: "Sweet Potato", slug: "sweet-potato", cat: "exotics", img: "Sweet Potatoes", sku: "EXO-011", variety: "Orange flesh", origin: "USA / Egypt", pack: "Box · 6kg", unit: "per box", grade: "Class I", moq: "1 box", season: YR, status: "in", aliases: ["Kumara"], storage: "Cool, dry, ambient", note: "Sweet orange-flesh variety; graded by size." },
     { name: "Pak Choi", slug: "pak-choi", cat: "exotics", img: "Pak Choi", sku: "EXO-012", variety: "Baby", origin: "UK / Netherlands", pack: "Case · 5kg", unit: "per case", grade: "Class I", moq: "1 case", season: YR, status: "in", aliases: ["Bok choy", "Pak choy"], storage: "Chilled 2–4°C", note: "Crisp baby pak choi for stir-fry and service." },
-    { name: "Guava", slug: "guava", cat: "exotics", kw: "guava,fruit", lock: 32, sku: "EXO-013", variety: "Pink & white", origin: "India / Egypt", pack: "Box · 4kg", unit: "per box", grade: "Class I", moq: "1 box", season: YR, status: "in", aliases: ["Amrood"], storage: "Chilled 8–10°C", note: "Fragrant tropical guava, pink and white flesh." },
-    { name: "Jackfruit", slug: "jackfruit", cat: "exotics", kw: "jackfruit", lock: 33, sku: "EXO-014", variety: "Whole & cut", origin: "India / Vietnam", pack: "Per piece", unit: "per piece", grade: "Class I", moq: "1 piece", season: YR, status: "low", aliases: ["Kathal"], storage: "Ambient / chilled", note: "Large tropical jackfruit — whole or pre-cut to order." },
+    { name: "Guava", slug: "guava", cat: "exotics", sku: "EXO-013", variety: "Pink & white", origin: "India / Egypt", pack: "Box · 4kg", unit: "per box", grade: "Class I", moq: "1 box", season: YR, status: "in", aliases: ["Amrood"], storage: "Chilled 8–10°C", note: "Fragrant tropical guava, pink and white flesh." },
+    { name: "Jackfruit", slug: "jackfruit", cat: "exotics", sku: "EXO-014", variety: "Whole & cut", origin: "India / Vietnam", pack: "Per piece", unit: "per piece", grade: "Class I", moq: "1 piece", season: YR, status: "low", aliases: ["Kathal"], storage: "Ambient / chilled", note: "Large tropical jackfruit — whole or pre-cut to order." },
 
     // ---- HERBS & AROMATICS ----
     { name: "Coriander", slug: "coriander", cat: "herbs", img: "Coriander", sku: "HRB-001", variety: "Fresh bunch", origin: "UK / Italy", pack: "Box · 10 bunch", unit: "per box", grade: "Class I", moq: "1 box", season: YR, status: "in", aliases: ["Cilantro", "Dhania"], storage: "Chilled 2–4°C", note: "Fragrant, full-leaf bunches." },
@@ -96,12 +103,15 @@
   const BY_SLUG = {};
   PRODUCTS.forEach((p) => (BY_SLUG[p.slug] = p));
 
-  /* ---------- Image helpers (local → TheMealDB cutout → loremflickr → monogram) ---------- */
+  /* ---------- Image helpers (local → TheMealDB cutout → monogram) ---------- */
   function candidates(p) {
     const out = [];
-    if (LOCAL_IMAGES[p.slug]) out.push({ url: "assets/products/" + p.cat + "/" + LOCAL_IMAGES[p.slug], fit: "cover" });
+    const li = LOCAL_IMAGES[p.slug];
+    if (li) {
+      const f = typeof li === "string" ? { file: li, fit: "cover" } : li;
+      out.push({ url: "assets/products/" + p.cat + "/" + f.file, fit: f.fit || "cover" });
+    }
     if (p.img) out.push({ url: "https://www.themealdb.com/images/ingredients/" + encodeURIComponent(p.img) + ".png", fit: "contain" });
-    if (p.kw) out.push({ url: "https://loremflickr.com/600/600/" + encodeURIComponent(p.kw) + "?lock=" + (p.lock || 1), fit: "cover" });
     return out;
   }
   function wirePlate(plate, p) {
@@ -711,8 +721,8 @@
 
   const CATEGORIES = [
     { key: "fruits", label: "Fruits", rep: "oranges" },
-    { key: "vegetables", label: "Vegetables", rep: "tomatoes", img: "https://loremflickr.com/720/560/fresh,vegetables?lock=11" },
-    { key: "herbs", label: "Salads & Herbs", rep: "coriander", img: "https://loremflickr.com/720/560/salad,lettuce,herbs?lock=23" },
+    { key: "vegetables", label: "Vegetables", rep: "tomatoes", img: "assets/collections/vegetables.jpg" },
+    { key: "herbs", label: "Salads & Herbs", rep: "coriander", img: "assets/collections/salads-herbs.jpg" },
     { key: "exotics", label: "Exotic Fruits", rep: "mango" },
   ];
   const showcase = $("#catShowcase");
