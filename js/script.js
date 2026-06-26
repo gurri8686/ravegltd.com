@@ -122,9 +122,8 @@
   }
 
   /* ---------- State ----------
-     q       = the live text currently in the input (not yet committed)
-     qTerms  = committed search chips (Enter-to-add). Filtering ANDs every term + live q. */
-  const state = { cat: "all", q: "", qTerms: [], inSeason: false, sort: "featured", view: "grid", limit: 16 };
+     q = the search query. Multiple words are AND-matched (e.g. "red apple"). */
+  const state = { cat: "all", q: "", inSeason: false, sort: "featured", view: "grid", limit: 16 };
   const STEP = 16;
   let quote = readLS("raveg:quote", {});
   state.view = readLS("raveg:view", "grid") === "list" ? "list" : "grid";
@@ -137,10 +136,10 @@
   if (!grid) return; // products section not on page
 
   const elSearch = $("#catalogSearch");
-  const elField = $("#catalogField"), elFieldBody = $("#catalogFieldBody");
+  const elField = $("#catalogField"), elSearchClear = $("#searchClear");
   const elTabs = $$(".cat-tab"), elSort = $("#catalogSort"), elSeason = $("#seasonToggle");
   const elViewBtns = $$(".view-btn"), elToolbar = $("#catalogToolbar");
-  const elChips = $("#catalogChips"), elClearAll = $("#clearAll");
+  const elClearAll = $("#clearAll");
   const elEmpty = $("#catalogEmpty"), elMore = $("#catalogMore"), elLoadMore = $("#loadMore");
   const elMeta = $("#catalogMeta");
 
@@ -152,8 +151,8 @@
 
   /* ---------- Filter + sort ---------- */
   function getFiltered() {
-    // Every committed term + the live text must all match (AND).
-    const terms = state.qTerms.concat(state.q.trim() ? [state.q.trim()] : []).map((t) => t.toLowerCase());
+    // Split the query into words; every word must match somewhere (AND).
+    const terms = state.q.trim().toLowerCase().split(/\s+/).filter(Boolean);
     let list = PRODUCTS.filter((p) => {
       if (state.cat !== "all" && p.cat !== state.cat) return false;
       if (state.inSeason && !p.season[MONTH]) return false;
@@ -165,8 +164,6 @@
     });
     const s = state.sort;
     if (s === "name") list.sort((a, b) => a.name.localeCompare(b.name));
-    else if (s === "origin") list.sort((a, b) => a.origin.localeCompare(b.origin) || a.name.localeCompare(b.name));
-    else if (s === "category") list.sort((a, b) => a.cat.localeCompare(b.cat) || a.name.localeCompare(b.name));
     else if (s === "season") list.sort((a, b) => (b.season[MONTH] - a.season[MONTH]) || a.name.localeCompare(b.name));
     return list;
   }
@@ -270,34 +267,20 @@
     elEmpty.hidden = total !== 0;
     if (total === 0) {
       const em = $("#emptyMsg");
-      const liveTerm = state.qTerms.concat(state.q.trim() ? [state.q.trim()] : [])[0];
-      if (em) em.textContent = liveTerm ? 'No produce matches “' + liveTerm + '”.' : "No produce matches the selected filters.";
+      const q = state.q.trim();
+      if (em) em.textContent = q ? 'No produce matches “' + q + '”.' : "No produce matches the selected filters.";
     }
     elMore.hidden = total <= state.limit;
-    renderChips();
+    syncControls();
   }
 
-  /* Build the active-filter chips that live INSIDE the search field.
-     Chip kinds: cat (category) · season · q:<index> (a committed search term). */
-  function renderChips() {
-    const chips = [];
-    if (state.cat !== "all") chips.push({ k: "cat", kind: "cat", label: CAT_LABEL[state.cat] });
-    if (state.inSeason) chips.push({ k: "season", kind: "season", label: "In season" });
-    state.qTerms.forEach((t, i) => chips.push({ k: "q:" + i, kind: "q", label: t }));
-
-    elChips.innerHTML = chips.map((c) =>
-      '<li class="catalog-chip" data-kind="' + c.kind + '">' +
-        (c.kind === "q" ? '<span class="catalog-chip__dot" aria-hidden="true"></span>' : '') +
-        '<span class="catalog-chip__label">' + esc(c.label) + '</span>' +
-        '<button type="button" class="catalog-chip__x" data-chip="' + c.k + '" aria-label="Remove ' + esc(c.label) + ' filter">' +
-          '<svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>' +
-        '</button>' +
-      '</li>'
-    ).join("");
-
-    const hasAny = chips.length > 0 || !!state.q;
-    elClearAll.hidden = chips.length === 0;        // clear-all only when committed filters exist
-    elField.classList.toggle("has-content", hasAny);
+  /* Reflect current state on the controls: search "/" hint + inline clear,
+     and the Clear-all button (shown only when any filter is active). */
+  function syncControls() {
+    const hasText = !!state.q;
+    if (elSearchClear) elSearchClear.hidden = !hasText;
+    if (elField) elField.classList.toggle("has-content", hasText);
+    if (elClearAll) elClearAll.hidden = !(state.cat !== "all" || state.inSeason || hasText);
   }
 
   /* ---------- Toolbar events ---------- */
@@ -324,41 +307,29 @@
     }
   }
 
-  // Clicking anywhere in the field focuses the text input (chip ×-buttons handle their own clicks)
-  if (elField) elField.addEventListener("mousedown", (e) => {
-    if (e.target.closest(".catalog-chip__x, .catalog-search__clear")) return;
-    if (e.target !== elSearch) { e.preventDefault(); elSearch.focus(); }
-  });
+  // Focus styling on the search field
   if (elSearch) {
     elSearch.addEventListener("focus", () => elField.classList.add("is-focused"));
     elSearch.addEventListener("blur", () => elField.classList.remove("is-focused"));
   }
 
-  // Commit a typed term into a chip (deduped, capped to keep the field tidy)
-  function commitTerm() {
-    const t = elSearch.value.trim();
-    elSearch.value = "";
-    state.q = "";
-    if (t && !state.qTerms.some((x) => x.toLowerCase() === t.toLowerCase()) && state.qTerms.length < 6) {
-      state.qTerms.push(t);
-    }
-    resetLimit(); render(); revealResults();
+  // Clear just the search query
+  function clearSearch() {
+    if (!elSearch) return;
+    elSearch.value = ""; state.q = ""; resetLimit(); render(); elSearch.focus();
   }
+  if (elSearchClear) elSearchClear.addEventListener("click", clearSearch);
 
+  // Live search (debounced); "/" hint hides as soon as the user types
   let searchT;
   if (elSearch) elSearch.addEventListener("input", () => {
     clearTimeout(searchT);
-    elField.classList.toggle("has-content", !!elSearch.value || state.qTerms.length || state.cat !== "all" || state.inSeason);
+    elField.classList.toggle("has-content", !!elSearch.value);
     searchT = setTimeout(() => { state.q = elSearch.value; resetLimit(); render(); }, 150);
   });
+  // Escape clears the query while focused
   if (elSearch) elSearch.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") { e.preventDefault(); clearTimeout(searchT); commitTerm(); }
-    // Backspace on an empty input removes the last chip (React-Select / Notion behaviour)
-    else if (e.key === "Backspace" && elSearch.value === "") {
-      if (state.qTerms.length) { state.qTerms.pop(); resetLimit(); render(); }
-      else if (state.inSeason) { state.inSeason = false; elSeason.setAttribute("aria-pressed", "false"); resetLimit(); render(); }
-      else if (state.cat !== "all") { setCat("all"); }
-    }
+    if (e.key === "Escape" && elSearch.value) { e.preventDefault(); clearTimeout(searchT); clearSearch(); }
   });
 
   // Press "/" anywhere to jump to the catalogue search (ignored while typing in a field)
@@ -402,15 +373,13 @@
       check:    '<path d="M5 12.5l4.2 4.2L19 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>',
       featured: '<path d="M12 3l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9 6.8 19.6l1-5.8L3.5 9.7l5.9-.9z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>',
       az:       '<path d="M5 16l2.2-7L9.4 16M5.6 14h3.6M14 9h5l-5 7h5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>',
-      season:   '<path d="M12 3c2.5 3 4 5.4 4 8a4 4 0 11-8 0c0-2.6 1.5-5 4-8z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 13v8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>',
-      origin:   '<circle cx="12" cy="11" r="3.2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 21c4.5-4.2 6.5-7.4 6.5-10a6.5 6.5 0 10-13 0c0 2.6 2 5.8 6.5 10z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>',
-      category: '<rect x="4" y="4" width="6.5" height="6.5" rx="1.6" fill="none" stroke="currentColor" stroke-width="1.8"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.6" fill="none" stroke="currentColor" stroke-width="1.8"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.6" fill="none" stroke="currentColor" stroke-width="1.8"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.6" fill="none" stroke="currentColor" stroke-width="1.8"/>'
+      season:   '<path d="M12 3c2.5 3 4 5.4 4 8a4 4 0 11-8 0c0-2.6 1.5-5 4-8z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 13v8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>'
     };
     const svg = (k, sz = 18) => `<svg viewBox="0 0 24 24" width="${sz}" height="${sz}" aria-hidden="true">${ICONS[k] || ""}</svg>`;
 
     const opts = Array.from(sel.options).map((o, i) => ({
       value: o.value, label: o.text,
-      icon: o.dataset.icon || "category", desc: o.dataset.desc || "", id: `rsort-opt-${i}`
+      icon: o.dataset.icon || "featured", id: `rsort-opt-${i}`
     }));
 
     const listId = "rsort-list", triggerId = "rsort-trigger";
@@ -429,8 +398,7 @@
       opts.map((o) =>
         `<li id="${o.id}" class="rsort__opt" role="option" data-value="${o.value}" aria-selected="false">` +
           `<span class="rsort__opt-ic">${svg(o.icon)}</span>` +
-          `<span class="rsort__opt-txt"><span class="rsort__opt-name">${esc(o.label)}</span>` +
-            (o.desc ? `<span class="rsort__opt-desc">${esc(o.desc)}</span>` : ``) + `</span>` +
+          `<span class="rsort__opt-txt"><span class="rsort__opt-name">${esc(o.label)}</span></span>` +
           `<span class="rsort__opt-check">${svg("check", 17)}</span>` +
         `</li>`
       ).join("") +
@@ -446,8 +414,7 @@
       const o = opts.find((x) => x.value === sel.value) || opts[0];
       trigger.innerHTML =
         `<span class="rsort__lead">${svg("lead", 16)}</span>` +
-        `<span class="rsort__valwrap"><span class="rsort__hint">Sort</span>` +
-        `<span class="rsort__value">${esc(o.label)}</span></span>` +
+        `<span class="rsort__value">${esc(o.label)}</span>` +
         `<span class="rsort__chev">${svg("chev", 16)}</span>`;
     }
     function syncSelected() {
@@ -543,35 +510,12 @@
 
   if (elLoadMore) elLoadMore.addEventListener("click", () => { state.limit += STEP; render(); });
 
-  // Apply the state change a chip removal implies, then re-render.
-  function removeChip(k) {
-    if (k === "cat") setCat("all", { render: false });
-    else if (k === "season") { state.inSeason = false; if (elSeason) elSeason.setAttribute("aria-pressed", "false"); }
-    else if (k.indexOf("q:") === 0) { const i = +k.slice(2); if (!isNaN(i)) state.qTerms.splice(i, 1); }
-    resetLimit(); render();
-  }
-  elChips.addEventListener("click", (e) => {
-    const btn = e.target.closest("[data-chip]");
-    if (!btn) return;
-    const k = btn.dataset.chip, chip = btn.closest(".catalog-chip");
-    // Play the exit animation, then commit the removal once (guarded against double-fire)
-    const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (chip && !reduce) {
-      let done = false;
-      const fire = () => { if (done) return; done = true; removeChip(k); };
-      chip.classList.add("is-leaving");
-      chip.addEventListener("animationend", fire, { once: true });
-      setTimeout(fire, 200); // fallback if animationend doesn't fire
-    } else {
-      removeChip(k);
-    }
-  });
-
+  // Reset every filter (search + category + season) back to defaults
   function clearAll() {
-    state.q = ""; state.qTerms = []; state.inSeason = false;
+    state.q = ""; state.inSeason = false;
     if (elSearch) elSearch.value = "";
     if (elSeason) elSeason.setAttribute("aria-pressed", "false");
-    setCat("all"); // resets tabs + renders
+    setCat("all"); // resets tabs + renders (syncControls hides the Clear button)
     if (elSearch) elSearch.focus();
   }
   if (elClearAll) elClearAll.addEventListener("click", clearAll);
@@ -745,7 +689,7 @@
   }
 
   function applyCategory(cat) {
-    state.q = ""; state.qTerms = []; state.inSeason = false;
+    state.q = ""; state.inSeason = false;
     if (elSearch) elSearch.value = "";
     if (elSeason) elSeason.setAttribute("aria-pressed", "false");
     setCat(cat); // updates tabs + state.cat, resets limit, renders
